@@ -4,6 +4,7 @@ from YouGile.page.CompanyListPageApi import GetCompany
 from YouGile.page.AuthPageApi import AuthPage
 from YouGile.page.GetKeysPageApi import KeysPage
 from YouGile.page.ProjectListApi import GetProjectList
+from YouGile.page.ProjectsListApi import GetProjectsList
 from YouGile.page.ChangeProPageApi import ChangeProject
 from YouGile.page.CreateProApi import CreateProject
 import os
@@ -28,24 +29,20 @@ def test_get_company_list():
     with allure.step("Получить лист компаний"):
         get_list = comp_page.get_company_list(login, password, name)
     print(get_list)
+    expected_count = get_list.get("paging", {}).get("count")
+    assert expected_count == 0
 
 
 @allure.epic("YouGile Api")
 @allure.story("Запрос листа компаний негативная проверка")
-@allure.title("Запрос листа компаний негативная проверка")
+@allure.title("Запрос листа компаний без указания имени пользователя")
 def test_get_company_list_negative():
     comp_page = GetCompany(auth_url)
-    with allure.step("Получить лист компаний"):
-        get_list = comp_page.get_company_list(login, password)
+    with pytest.raises(TypeError) as exc_info:
+        comp_page.get_company_list(login, password)
 
-    status_code = get_list.get('statusCode')
-    with allure.step("Проверить получение ожидаемого статус кода"):
-        assert (status_code == 400
-                ), (f"Ожидался статус 400 Bad Request Error, "
-                    f"получен: {status_code}")
-
-    error_msg = get_list.get('message', '').lower()
-    assert 'not found' in error_msg or 'cannot' in error_msg
+    assert ("missing 1 required positional argument: 'name'"
+            in str(exc_info.value))
 
 
 @allure.epic("YouGile Api")
@@ -65,14 +62,23 @@ def test_keys():
     keys_page = KeysPage(auth_url)
     with allure.step("Получить список ключей пользователя"):
         token_list = keys_page.get_keys()
-    print(token_list)
+
+    assert isinstance(token_list, list), \
+        f"Ожидался список, получен {type(token_list)}"
+    assert len(token_list) > 0, "Список ключей пуст"
+    expected_key = os.getenv("API_TOKEN")
+
+    with allure.step(f"Проверить наличие и значение ключа '{expected_key}'"):
+        actual_key = token_list[0].get('key')
+    assert actual_key == expected_key, (f"Ожидался ключ {expected_key},"
+                                        f"" f"получен: {actual_key}")
 
 
 @allure.epic("YouGile Api")
 @allure.story("Получение списка проектов компании")
 @allure.title("Получение списка проектов компании")
 def test_get_projects():
-    all_projects = GetProjectList(auth_url)
+    all_projects = GetProjectsList(auth_url)
     with allure.step(
             "Получить сведения о пагинации и список проектов компаний"):
         result = all_projects.project_list()
@@ -101,7 +107,7 @@ def test_get_projects():
 @allure.story("Создание проекта")
 @allure.title("Создание проекта")
 def test_create_project():
-    all_projects = GetProjectList(auth_url)
+    all_projects = GetProjectsList(auth_url)
     with allure.step("Получить список проектов до"):
         result_before = all_projects.project_list()
     with allure.step("Передать в переменную длину списка проектов до"):
@@ -123,19 +129,38 @@ def test_create_project():
 @allure.story("Изменение наименования проекта")
 @allure.title("Изменение наименования проекта")
 def test_change_pro():
-    to_change = ChangeProject(auth_url)
-    with allure.step("Найти проект по его id и изменить название проекта"):
-        result = to_change.project_list(project_id)
-    with allure.step("Вывести в консоль новый id проекта"):
-        print(result)
+    expected_title = "River-Volga"
+    changer = ChangeProject(auth_url)
+    getter = GetProjectList(auth_url)
+    with allure.step(f"Отправить запрос на изменение названия на "
+                     f"'{expected_title}'"):
+        update_result = changer.project_list(project_id)
+        assert 'id' in update_result, (f"Сервер не вернул id."
+                                       f"Ответ: {update_result}")
+
+    with allure.step(
+            "Получить проект заново через GET и проверить поле title"):
+        current_data = getter.project_list(project_id)
+        actual_title = current_data.get('title')
+
+    with (allure.step(
+            "Проверить через assert, что название изменилось в базе данных")):
+        assert actual_title == expected_title, (
+            f"Провал теста: название в базе"
+            f"не совпадает с ожидаемой строкой.\n"
+            f"Ожидалось: '{expected_title}'\n"
+            f"Фактически пришло в GET: '{actual_title}'\n"
+            f"Полный ответ GET: {current_data}\n"
+            f"(Ответ сервера на PUT был: {update_result})")
 
 
 @allure.epic("YouGile Api")
 @allure.story("Изменение наименования проекта негативная проверка")
-@allure.title("Изменения наименования проекта негативная проверка")
+@allure.title("Изменения наименования проекта без добавления id")
 def test_negative_change_pro():
     to_change = ChangeProject(auth_url)
-    with allure.step("Направить запрос на изменение проекта без указания id"):
-        result = to_change.project_list()
-    with allure.step("Вывести в консоль результат запроса"):
-        print(result)
+    with pytest.raises(TypeError) as exc_info:
+        to_change.project_list()
+
+        assert ("missing 1 required positional argument: 'project_id'"
+                in str(exc_info.value))

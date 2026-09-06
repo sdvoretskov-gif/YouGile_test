@@ -7,7 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 class AuthPage:
 
     def __init__(self, driver: WebDriver) -> None:
-        self.__url = "https://ru.yougile.com/team/settings-account#ID-49"
+        self.__url = "https://ru.yougile.com/team"
         self.__driver = driver
 
     def go(self):

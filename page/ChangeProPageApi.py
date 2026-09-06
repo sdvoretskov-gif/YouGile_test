@@ -14,5 +14,9 @@ class ChangeProject:
             "title": "River-Volga"
         }
         resp = requests.put(
-            self.url + '/projects/' + str(project_id), body, headers=headers)
+            self.url + '/projects/' + str(project_id), json=body,
+            headers=headers)
+
+        print(f"Status: {resp.status_code}")
+        print(f"Response body: {resp.text}")
         return resp.json()

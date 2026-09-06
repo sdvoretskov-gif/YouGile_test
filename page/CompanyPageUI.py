@@ -126,6 +126,18 @@ class CompanyPage:
         inter_name.send_keys(task_name)
         inter_name.send_keys(Keys.ENTER)
 
+        locator = (By.XPATH, "//span[contains(text(), 'Flyyyy')]")
+
+        task_element = WebDriverWait(self.__driver, 10).until(
+            EC.visibility_of_element_located(locator)
+        )
+        actual_text = task_element.text
+        expected_text = 'Flyyyy'
+        assert actual_text == expected_text, \
+            f"Ожидался текст '{expected_text}', но получен '{actual_text}'"
+
+        return actual_text
+
     def del_column(self):
         click_card = self.__driver.find_element(
             By.XPATH, "//div[@data-testid='project-title' "
