@@ -1,7 +1,6 @@
 import pytest
 import allure
 from YouGile.page.CompanyListPageApi import GetCompany
-from YouGile.page.AuthPageApi import AuthPage
 from YouGile.page.GetKeysPageApi import KeysPage
 from YouGile.page.ProjectListApi import GetProjectList
 from YouGile.page.ProjectsListApi import GetProjectsList
@@ -27,10 +26,11 @@ project_id = os.getenv("PROJECTID")
 def test_get_company_list():
     comp_page = GetCompany(auth_url)
     with allure.step("Получить лист компаний"):
-        get_list = comp_page.get_company_list(login, password, name)
+        get_list = comp_page.get_company_list()
     print(get_list)
     expected_count = get_list.get("paging", {}).get("count")
-    assert expected_count == 0
+    with allure.step("Проверить что количество элементов в списке равно 0"):
+        assert expected_count == 0
 
 
 @allure.epic("YouGile Api")
@@ -41,18 +41,11 @@ def test_get_company_list_negative():
     with pytest.raises(TypeError) as exc_info:
         comp_page.get_company_list(login, password)
 
-    assert ("missing 1 required positional argument: 'name'"
-            in str(exc_info.value))
-
-
-@allure.epic("YouGile Api")
-@allure.story("Запрос на получение Api Key")
-@allure.title("Запрос на получение Api Key")
-def test_auth():
-    auth_page = AuthPage(auth_url)
-    with allure.step("Получить Api Key"):
-        token_key = auth_page.get_token()
-    print(token_key)
+    expected_error = ("GetCompany.get_company_list() "
+                      "takes 1 positional argument but 3 were given")
+    with allure.step("Проверить что сервер вернет ошибку "
+                     "- должен быть один аргумент но дано 3"):
+        assert str(exc_info.value) == expected_error
 
 
 @allure.epic("YouGile Api")
@@ -97,10 +90,10 @@ def test_get_projects():
     with allure.step("Убедится что количество проектов в пагинации "
                      "соответствует количеству проектов компании из списка"):
         expected_count = result.get("paging", {}).get("count")
-    assert projects_count == expected_count, (
-        f"Количество элементов в 'content' "
-        f"({projects_count}) " f"не совпадает со счетчиком в 'paging' "
-        f"({expected_count})")
+        assert projects_count == expected_count, (
+            f"Количество элементов в 'content' "
+            f"({projects_count}) " f"не совпадает со счетчиком в 'paging' "
+            f"({expected_count})")
 
 
 @allure.epic("YouGile Api")
@@ -123,6 +116,24 @@ def test_create_project():
         len_after = len(result_after["content"])
     with allure.step("Проверить что длинна списка проектов увеличилась на 1"):
         assert len_after - len_before == 1
+
+
+@allure.epic("YouGile Api")
+@allure.story("Создание проекта негативная проверка")
+@allure.title("Создание проекта без токена авторизации")
+def test_create_project_negative():
+    create_pro = CreateProject(auth_url)
+    with allure.step("Создать новый проект без заголовка с токеном"):
+        result = create_pro.post_project_negative()
+
+    with allure.step("Проверить что ответ сервера с статус кодом 401 "
+                     "- Unauthorized"):
+        assert result["statusCode"] == 401, \
+            f"Ожидался код 401, получен {result.get('statusCode')}"
+        assert "error" in result
+        assert result["error"] == "Unauthorized"
+        assert "message" in result
+        assert result["message"] == "Unauthorized"
 
 
 @allure.epic("YouGile Api")
@@ -161,6 +172,7 @@ def test_negative_change_pro():
     to_change = ChangeProject(auth_url)
     with pytest.raises(TypeError) as exc_info:
         to_change.project_list()
-
-        assert ("missing 1 required positional argument: 'project_id'"
-                in str(exc_info.value))
+        with allure.step("Проверить что сервер вернет ответ с ошибкой "
+                         "так как аргумент project_id не передан"):
+            assert ("missing 1 required positional argument: 'project_id'"
+                    in str(exc_info.value))

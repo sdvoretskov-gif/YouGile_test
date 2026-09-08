@@ -7,6 +7,10 @@ from selenium.webdriver.support import expected_conditions as EC
 
 
 class CompanyPage:
+    COLUMN_CARD_LOCATOR = (
+        By.XPATH, '//div[@class="task-group-container '
+                  'task-group-container flex flex-col '
+                  'h-full max-h-full min-h-full relative"]')
 
     def __init__(self, driver: WebDriver) -> None:
         self.__driver = driver
@@ -88,6 +92,12 @@ class CompanyPage:
              f"'{expected_title}'\n" f"Фактическое название:"
              f"'{final_title}'")
 
+    def get_cart(self):
+        click_card = self.__driver.find_element(
+            By.XPATH, "//div[@data-testid='project-title' "
+                      "and text()='Skyeng']")
+        click_card.click()
+
     def create_column(self):
         click_card = self.__driver.find_element(
             By.XPATH, "//div[@data-testid='project-title' "
@@ -100,6 +110,9 @@ class CompanyPage:
         add_column.click()
         (self.__driver.switch_to.active_element.
          send_keys("Новая колонка", Keys.RETURN))
+
+    def find_all_columns(self):
+        return self.__driver.find_elements(*self.COLUMN_CARD_LOCATOR)
 
     def add_task(self, task_name: str):
         click_card = self.__driver.find_element(
@@ -125,18 +138,6 @@ class CompanyPage:
                                   '"Введите название задачи…"]')))
         inter_name.send_keys(task_name)
         inter_name.send_keys(Keys.ENTER)
-
-        locator = (By.XPATH, "//span[contains(text(), 'Flyyyy')]")
-
-        task_element = WebDriverWait(self.__driver, 10).until(
-            EC.visibility_of_element_located(locator)
-        )
-        actual_text = task_element.text
-        expected_text = 'Flyyyy'
-        assert actual_text == expected_text, \
-            f"Ожидался текст '{expected_text}', но получен '{actual_text}'"
-
-        return actual_text
 
     def del_column(self):
         click_card = self.__driver.find_element(

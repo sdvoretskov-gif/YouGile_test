@@ -19,3 +19,14 @@ class CreateProject:
         resp = requests.post(
             self.url + '/projects/', json=body, headers=headers)
         return resp.json()
+
+    def post_project_negative(self):
+        user_id = str(os.getenv("USER_ID"))
+        body = {
+            "title": "New test project",
+            "users": {
+                user_id: "admin"}
+        }
+        resp = requests.post(
+            self.url + '/projects/', json=body)
+        return resp.json()
